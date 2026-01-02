@@ -1,0 +1,27 @@
+header:
+  version: 1
+
+machine: cm5-mi450-linnie
+distro: 
+target: 
+
+repos:
+  bitbake:
+    url: 
+    branch: 
+    # or
+    commit:
+    path:
+    layers:
+
+  openembedded-core:
+    url:
+    branch:
+    path:
+    layers:
+      meta:
+
+  meta-cm5:
+    path: meta-cm5
+  meta-linnie:
+    path: meta-linnie
