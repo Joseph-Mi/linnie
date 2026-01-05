@@ -20,6 +20,10 @@ repos:
     path:
     layers:
       meta:
+  meta-raspberrypi:
+      commit: 255500dd9f6a01a3445ac491d1abc401801e3bad
+  meta-rauc:
+      commit: 4cb7c47686d5dec9bacae6110f1bcaac57568691
 
   meta-cm5:
     path: meta-cm5
