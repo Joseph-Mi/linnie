@@ -1,0 +1,59 @@
+header:
+  version: 14
+
+machine: raspberrypi5 # try raspberrypi-cm5-io-board if this doesnt work
+distro: poky
+
+repos:
+  # README: Fix typo
+  poky:
+    url: https://git.yoctoproject.org/poky
+    path: /yocto/workspace/sources/poky
+    commit: 353491479086e8d3f209d5cce0019a29e143b064
+    layers:
+      meta:
+      meta-poky:
+      meta-yocto-bsp:
+
+  # php 8.2.29: CVE-2025-14177
+  meta-openembedded:
+    url: https://git.openembedded.org/meta-openembedded
+    path: /yocto/workspace/sources/meta-openembedded
+    commit: 2759d8870ea387b76c902070bed8a6649ff47b56
+    layers:
+      meta-oe:
+      meta-python:
+      meta-networking:
+      meta-multimedia:
+
+  # rpi-config: ENABLE_UART for CM5 IO Board
+  meta-raspberrypi:
+    url: https://git.yoctoproject.org/meta-raspberrypi
+    path: /yocto/workspace/sources/meta-raspberrypi
+    commit: 2c646d29912dcc873469a57b1c207e1549c5094d
+
+  meta-linnie:
+    path: /workspaces/linnie/sources/meta-linnie
+env:
+  DL_DIR: /yocto/downloads
+  SSTATE_DIR: /yocto/sstate-cache
+
+local_conf_header:
+  standard: |
+    CONF_VERSION = "2"
+  
+  parallelism: |
+    BB_NUMBER_THREADS = "8"
+    PARALLEL_MAKE = "-j 8"
+  
+  features: |
+    EXTRA_IMAGE_FEATURES += "debug-tweaks ssh-server-dropbear"
+    ENABLE_UART = "1"
+  
+  init: |
+    INIT_MANAGER = "systemd"
+  
+  licensing: |
+    LICENSE_FLAGS_ACCEPTED = "synaptics-killswitch"
+
+target: core-image-base

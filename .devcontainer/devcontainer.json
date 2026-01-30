@@ -1,0 +1,43 @@
+{
+  "name": "Linnie Yocto Development",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "workspaceFolder": "/workspaces/linnie",
+  "mounts": [
+    // Yocto workspace - KAS will clone external repos here (Linux filesystem)
+    "source=linnie-yocto-workspace,target=/yocto/workspace,type=volume",
+    // Build directory - BitBake builds here (Linux filesystem)
+    "source=linnie-yocto-build,target=/yocto/build,type=volume",
+    // Downloads cache - source tarballs (Linux filesystem)
+    "source=linnie-yocto-downloads,target=/yocto/downloads,type=volume",
+    // Shared state cache - compiled artifacts (Linux filesystem)
+    "source=linnie-yocto-sstate,target=/yocto/sstate-cache,type=volume"
+  ],
+  "containerEnv": {
+    "DL_DIR": "/yocto/downloads",
+    "SSTATE_DIR": "/yocto/sstate-cache",
+    "KAS_WORK_DIR": "/yocto/workspace",
+    "KAS_BUILD_DIR": "/yocto/build"
+  },
+  "postCreateCommand": "echo 'Container created'",
+  "postStartCommand": "sudo mkdir -p /yocto/workspace/sources /yocto/downloads /yocto/sstate-cache /yocto/build && sudo chown -R vscode:vscode /yocto",  "postStartCommand": "sudo chown -R vscode:vscode /yocto || true",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "files.watcherExclude": {
+          "**/yocto/workspace/**": true,
+          "**/yocto/build/**": true,
+          "**/yocto/downloads/**": true,
+          "**/yocto/sstate-cache/**": true
+        }
+      },
+      "extensions": [
+        "yocto-project.yocto-bitbake"
+      ]
+    }
+  },
+
+  "remoteUser": "vscode"
+}
