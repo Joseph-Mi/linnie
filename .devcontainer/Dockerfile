@@ -1,4 +1,5 @@
 FROM ubuntu:22.04
+# to use ubuntu 24.04 can reference here: https://www.youtube.com/watch?v=fY7u6PiV8qA
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -34,6 +35,9 @@ ENV LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 
 # Install kas
 RUN pip3 install --no-cache-dir kas
+
+# DNS tools for testing
+RUN apt-get update && apt-get install -y dnsutils curl 
 
 # Install faketime for signing keys
 # RUN apt-get update && apt-get install -y --no-install-recommends faketime
