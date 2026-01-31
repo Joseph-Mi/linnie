@@ -4,6 +4,10 @@
     "dockerfile": "Dockerfile"
   },
   "workspaceFolder": "/workspaces/linnie",
+  "runArgs": [
+    "--dns=8.8.8.8", // Primary Google DNS
+    "--dns=8.8.4.4"  // Secondary Google DNS
+  ],
   "mounts": [
     // Yocto workspace - KAS will clone external repos here (Linux filesystem)
     "source=linnie-yocto-workspace,target=/yocto/workspace,type=volume",
@@ -21,7 +25,7 @@
     "KAS_BUILD_DIR": "/yocto/build"
   },
   "postCreateCommand": "echo 'Container created'",
-  "postStartCommand": "sudo mkdir -p /yocto/workspace/sources /yocto/downloads /yocto/sstate-cache /yocto/build && sudo chown -R vscode:vscode /yocto",  "postStartCommand": "sudo chown -R vscode:vscode /yocto || true",
+  "postStartCommand": "sudo mkdir -p /yocto/workspace/sources /yocto/downloads /yocto/sstate-cache /yocto/build && sudo chown -R vscode:vscode /yocto", 
   "customizations": {
     "vscode": {
       "settings": {

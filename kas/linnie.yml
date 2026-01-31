@@ -46,6 +46,7 @@ local_conf_header:
     BB_NUMBER_THREADS = "8"
     PARALLEL_MAKE = "-j 8"
   
+  # enable ssh and uart
   features: |
     EXTRA_IMAGE_FEATURES += "debug-tweaks ssh-server-dropbear"
     ENABLE_UART = "1"
