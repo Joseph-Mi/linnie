@@ -28,8 +28,15 @@ Then select "Reopen in Container" when prompted.
 Inside the devcontainer, use KAS to build:
 
 ```bash
-# Build the default image
-kas build /workspaces/linnie/kas/linnie.yml
+# Build the Default image
+kas build kas/linnie.yml
+
+# Different Builds
+kas build kas/linnie.yml -- -c build core-image-minimal
+kas build kas/linnie.yml -- -c build core-image-base
+#Build with Specific Recipe to Isolate Issues
+kas shell kas/linnie.yml -c "bitbake thermal-overlay"
+kas shell kas/linnie.yml -c "bitbake linnie"
 
 # Or build with shell access for debugging
 kas shell /workspaces/linnie/kas/linnie.yml

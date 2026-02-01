@@ -66,6 +66,9 @@ local_conf_header:
   usb: |
     RPI_EXTRA_CONFIG:append = "dtoverlay=dwc2,dr_mode=host\n"
 
+  licensing: |
+    LICENSE_FLAGS_ACCEPTED = "synaptics-killswitch"
+
   image-features: |
     EXTRA_IMAGE_FEATURES += "debug-tweaks ssh-server-dropbear"
 
