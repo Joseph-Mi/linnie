@@ -1,11 +1,10 @@
 header:
   version: 14
 
-machine: raspberrypi5 # try raspberrypi-cm5-io-board if this doesnt work
+machine: cm5-mi450-linnie
 distro: poky
 
 repos:
-  # README: Fix typo
   poky:
     url: https://git.yoctoproject.org/poky
     path: /yocto/workspace/sources/poky
@@ -15,7 +14,6 @@ repos:
       meta-poky:
       meta-yocto-bsp:
 
-  # php 8.2.29: CVE-2025-14177
   meta-openembedded:
     url: https://git.openembedded.org/meta-openembedded
     path: /yocto/workspace/sources/meta-openembedded
@@ -26,7 +24,6 @@ repos:
       meta-networking:
       meta-multimedia:
 
-  # rpi-config: ENABLE_UART for CM5 IO Board
   meta-raspberrypi:
     url: https://git.yoctoproject.org/meta-raspberrypi
     path: /yocto/workspace/sources/meta-raspberrypi
@@ -34,6 +31,13 @@ repos:
 
   meta-linnie:
     path: /workspaces/linnie/sources/meta-linnie
+
+  meta-linnie-drivers:
+    path: /workspaces/linnie/sources/meta-linnie-drivers
+
+  meta-linnie-app:
+    path: /workspaces/linnie/sources/meta-linnie-app
+
 env:
   DL_DIR: /yocto/downloads
   SSTATE_DIR: /yocto/sstate-cache
@@ -41,20 +45,40 @@ env:
 local_conf_header:
   standard: |
     CONF_VERSION = "2"
-  
+
   parallelism: |
     BB_NUMBER_THREADS = "8"
     PARALLEL_MAKE = "-j 8"
-  
-  # enable ssh and uart
-  features: |
-    EXTRA_IMAGE_FEATURES += "debug-tweaks ssh-server-dropbear"
-    ENABLE_UART = "1"
-  
+
   init: |
     INIT_MANAGER = "systemd"
-  
-  licensing: |
-    LICENSE_FLAGS_ACCEPTED = "synaptics-killswitch"
+    DISTRO_FEATURES:append = " systemd"
+    VIRTUAL-RUNTIME_init_manager = "systemd"
+    VIRTUAL-RUNTIME_initscripts = "systemd-compat-units"
+
+  serial: |
+    ENABLE_UART = "1"
+
+  i2c: |
+    ENABLE_I2C = "1"
+    RPI_EXTRA_CONFIG:append = "dtparam=i2c1=on\n"
+
+  usb: |
+    RPI_EXTRA_CONFIG:append = "dtoverlay=dwc2,dr_mode=host\n"
+
+  image-features: |
+    EXTRA_IMAGE_FEATURES += "debug-tweaks ssh-server-dropbear"
+
+    # Linnie application and thermal overlay
+    IMAGE_INSTALL:append = " linnie thermal-overlay"
+
+    # Python runtime for linnie services
+    IMAGE_INSTALL:append = " python3 python3-modules"
+
+    # USB camera driver
+    IMAGE_INSTALL:append = " kernel-module-uvcvideo"
+
+    # Debug tools (remove these for production image)
+    IMAGE_INSTALL:append = " v4l-utils i2c-tools usbutils"
 
 target: core-image-base

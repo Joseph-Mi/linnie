@@ -1,0 +1,27 @@
+[Unit]
+Description=Linnie Camera Service
+Documentation=https://github.com/your-repo/linnie
+After=multi-user.target
+# Camera service should start after thermal monitoring is up
+After=linnie-thermal.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -m linnie.camera
+Restart=on-failure
+RestartSec=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=linnie-camera
+
+# Camera needs access to video devices
+SupplementaryGroups=video
+
+# Resource limits (camera needs more resources)
+MemoryMax=256M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target
