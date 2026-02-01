@@ -1,0 +1,22 @@
+[Unit]
+Description=Linnie Thermal Monitoring Service
+Documentation=https://github.com/your-repo/linnie
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -m linnie.thermal
+Restart=on-failure
+RestartSec=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=linnie-thermal
+
+# Resource limits
+MemoryMax=64M
+CPUQuota=10%
+
+[Install]
+WantedBy=multi-user.target

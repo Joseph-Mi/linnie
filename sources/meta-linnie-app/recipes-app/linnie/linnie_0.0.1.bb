@@ -1,50 +1,47 @@
-SUMMARY = "linnie application for keyboard functionality, digital camera, and linux OS"
-DESCRIPTION = "Python application for USB camera, telemetry, and keyboard functionality on Linux OS"
-LICENSE = "CLOSED"
+SUMMARY = "Linnie System Services for CM5 MI450"
+DESCRIPTION = "Python services for thermal monitoring and USB camera on CM5 MI450 carrier board"
+LICENSE = "MIT"
+LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-FILESEXTRAPATHS:prepend := "${THISDIR}/../../..:"
+SRC_URI = " \
+    file://setup.py \
+    file://linnie/__init__.py \
+    file://linnie/thermal.py \
+    file://linnie/camera.py \
+    file://linnie-thermal.service \
+    file://linnie-camera.service \
+"
 
-SRC_URI = ""
-
-S = "${WORKDIR}/application"
-
-# Only minimal Python
-
-RDEPENDS:${PN} += ""
-
+S = "${WORKDIR}"
 
 inherit setuptools3 systemd
 
-SYSTEMD_SERVICE:${PN} = "dvr.service"
+# Runtime dependencies
+RDEPENDS:${PN} += " \
+    python3-core \
+    python3-logging \
+    v4l-utils \
+"
+
+# Optional: ffmpeg for camera recording (uncomment when needed)
+# RDEPENDS:${PN} += "ffmpeg"
+
+# Systemd services
+SYSTEMD_SERVICE:${PN} = "linnie-thermal.service linnie-camera.service"
 SYSTEMD_AUTO_ENABLE = "enable"
 
-DEPENDS += "protobuf-native"
-
-do_compile:prepend() {
-    # Compile any protobufs present in the app tree
-    proto_files=$(find ${S} -name "*.proto")
-
-    if [ -n "${proto_files}" ]; then
-        for proto in ${proto_files}; do
-            proto_dir=$(dirname ${proto})
-            proto_name=$(basename ${proto})
-            (cd ${proto_dir} && ${STAGING_BINDIR_NATIVE}/protoc --python_out=. ${proto_name})
-        done
-    fi
-}
-
 do_install:append() {
-    # Install systemd service
+    # Install systemd services
     install -d ${D}${systemd_system_unitdir}
-    install -m 0644 ${WORKDIR}/meta-dvr/recipes-app/dvr/files/dvr.service ${D}${systemd_system_unitdir}/
+    install -m 0644 ${WORKDIR}/linnie-thermal.service ${D}${systemd_system_unitdir}/
+    install -m 0644 ${WORKDIR}/linnie-camera.service ${D}${systemd_system_unitdir}/
 
-    # Ship default DVR config into /config on the image
-    install -d ${D}/config
-    cp -r ${S}/src/dvr/config/. ${D}/config/
-
-    # Ship sandbox helper into /scripts on the image
-    install -d ${D}/scripts
-    install -m 0644 ${S}/src/dvr/sandbox.py ${D}/scripts/
+    # Create recording directory (will be owned by root)
+    install -d ${D}/var/lib/linnie/recordings
 }
 
-FILES:${PN} += ""
+FILES:${PN} += " \
+    ${systemd_system_unitdir}/linnie-thermal.service \
+    ${systemd_system_unitdir}/linnie-camera.service \
+    /var/lib/linnie \
+"

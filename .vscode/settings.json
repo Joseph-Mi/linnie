@@ -1,11 +1,13 @@
 {
     "python.autoComplete.extraPaths": [
         "${workspaceFolder}/sources/poky/bitbake/lib",
-        "${workspaceFolder}/sources/poky/meta/lib"
+        "${workspaceFolder}/sources/poky/meta/lib",
+        "${workspaceFolder}\\sources\\poky\\meta\\lib"
     ],
     "python.analysis.extraPaths": [
         "${workspaceFolder}/sources/poky/bitbake/lib",
-        "${workspaceFolder}/sources/poky/meta/lib"
+        "${workspaceFolder}/sources/poky/meta/lib",
+        "${workspaceFolder}\\sources\\poky\\meta\\lib"
     ],
     "[python]": {
         "diffEditor.ignoreTrimWhitespace": false,
@@ -18,5 +20,9 @@
         "files.eol": "\n",
         "editor.defaultColorDecorators": "never",
         "files.trimTrailingWhitespace": false
+    },
+    "files.associations": {
+        "*.conf": "bitbake",
+        "*.inc": "bitbake"
     }
 }

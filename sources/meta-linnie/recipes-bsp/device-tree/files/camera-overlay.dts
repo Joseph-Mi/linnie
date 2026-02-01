@@ -1,9 +1,29 @@
+/*
+ * CSI Camera Overlay for CM5 MI450 Linnie
+ *
+ * This overlay is for FUTURE CSI camera support.
+ * Currently disabled (status = "disabled") since we're using USB camera (C920x).
+ *
+ * To enable CSI camera in the future:
+ *   1. Change status to "okay"
+ *   2. Update compatible string to match your sensor (imx477, imx219, etc.)
+ *   3. Verify I2C address matches your camera module
+ *   4. Add this overlay to RPI_EXTRA_CONFIG in linnie.conf
+ *
+ * Supported CSI sensors (update compatible and reg as needed):
+ *   - OV5647:  compatible = "ovti,ov5647";  reg = <0x36>;
+ *   - IMX219:  compatible = "sony,imx219";  reg = <0x10>;
+ *   - IMX477:  compatible = "sony,imx477";  reg = <0x1a>;
+ *   - IMX708:  compatible = "sony,imx708";  reg = <0x1a>;
+ */
+
 /dts-v1/;
 /plugin/;
 
 / {
     compatible = "brcm,bcm2712";
 
+    /* CSI Camera Sensor on I2C0 */
     fragment@0 {
         target = <&i2c0>;
         __overlay__ {
@@ -11,10 +31,10 @@
             #address-cells = <1>;
             #size-cells = <0>;
 
-            camera@10 {
+            camera@36 {
                 compatible = "ovti,ov5647";
-                reg = <0x10>;
-                status = "okay";
+                reg = <0x36>;
+                status = "disabled";  /* Enable when CSI camera is connected */
 
                 port {
                     camera_0: endpoint {
@@ -29,10 +49,11 @@
         };
     };
 
+    /* CSI1 Receiver */
     fragment@1 {
         target = <&csi1>;
         __overlay__ {
-            status = "okay";
+            status = "disabled";  /* Enable when CSI camera is connected */
 
             port {
                 csi1_ep: endpoint {
@@ -42,8 +63,3 @@
         };
     };
 };
-
-
-#####
-PLACEHOLDER
-#####

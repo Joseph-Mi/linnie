@@ -1,0 +1,74 @@
+/*
+ * TMP100 Temperature Sensor Overlay for CM5 MI450 Linnie
+ *
+ * Configures 6x TMP100 temperature sensors on I2C1:
+ *
+ *  0x48: sensors 1: Temp BUCK CM5
+ *  0x49: sensors 2: Temp I-BUCK CM5
+ *  0x4A: sensors 3: Temp Buck ESP32
+ *  0x4C: sensors 4: Temp BOARD
+ *  0x4D: sensors 5: Temp LDO
+ *  0x4E: sensors 6: Temp PWR INPUT
+ *
+ * TMP100 is compatible with the lm75 driver in Linux.
+ * found at: https://github.com/torvalds/linux/blob/master/drivers/hwmon/lm75.c
+ * these will appear at: /sys/class/hwmon/hwmonX/temp1_input
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "brcm,bcm2712";
+
+    fragment@0 {
+        target = <&i2c1>;
+        __overlay__ {
+            status = "okay";
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            /* TMP100 Sensor 1 */
+            temp_sensor_1: tmp100@48 {
+                compatible = "ti,tmp100";
+                reg = <0x48>;
+                status = "okay";
+            };
+
+            /* TMP100 Sensor 2 */
+            temp_sensor_2: tmp100@49 {
+                compatible = "ti,tmp100";
+                reg = <0x49>;
+                status = "okay";
+            };
+
+            /* TMP100 Sensor 3 */
+            temp_sensor_3: tmp100@4a {
+                compatible = "ti,tmp100";
+                reg = <0x4a>;
+                status = "okay";
+            };
+
+            /* TMP100 Sensor 4 */
+            temp_sensor_4: tmp100@4c {
+                compatible = "ti,tmp100";
+                reg = <0x4c>;
+                status = "okay";
+            };
+
+            /* TMP100 Sensor 5 */
+            temp_sensor_5: tmp100@4d {
+                compatible = "ti,tmp100";
+                reg = <0x4d>;
+                status = "okay";
+            };
+
+            /* TMP100 Sensor 6 */
+            temp_sensor_6: tmp100@4e {
+                compatible = "ti,tmp100";
+                reg = <0x4e>;
+                status = "okay";
+            };
+        };
+    };
+};
