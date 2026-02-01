@@ -1,0 +1,335 @@
+name: Yocto Build CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  # Build configuration
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  # Job 1: Build Minimal Image (fastest validation)
+  build-minimal:
+    name: Build core-image-minimal
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for proper versioning
+      
+      - name: Free up disk space
+        run: |
+          # GitHub runners have limited space (~14GB free)
+          # Remove unnecessary software to free up ~30GB
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          df -h
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+      
+      - name: Build DevContainer image
+        run: |
+          docker build -t linnie-yocto-builder:latest \
+            -f .devcontainer/Dockerfile \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            .
+          # Move cache to prevent unbounded growth
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+      
+      - name: Cache Yocto downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/yocto-dl-cache
+          key: yocto-downloads-${{ hashFiles('kas/linnie.yml') }}
+          restore-keys: |
+            yocto-downloads-
+      
+      - name: Cache Yocto sstate
+        uses: actions/cache@v4
+        with:
+          path: ~/yocto-sstate-cache
+          key: yocto-sstate-minimal-${{ github.sha }}
+          restore-keys: |
+            yocto-sstate-minimal-
+            yocto-sstate-
+      
+      - name: Prepare build directories
+        run: |
+          mkdir -p ~/yocto-dl-cache
+          mkdir -p ~/yocto-sstate-cache
+          mkdir -p ~/yocto-workspace
+          mkdir -p ~/yocto-build
+      
+      - name: Build core-image-minimal
+        run: |
+          docker run --rm \
+            -v $(pwd):/workspaces/linnie:ro \
+            -v ~/yocto-dl-cache:/yocto/downloads \
+            -v ~/yocto-sstate-cache:/yocto/sstate-cache \
+            -v ~/yocto-workspace:/yocto/workspace \
+            -v ~/yocto-build:/yocto/build \
+            --dns=8.8.8.8 \
+            --dns=8.8.4.4 \
+            linnie-yocto-builder:latest \
+            bash -c "kas build /workspaces/linnie/kas/linnie.yml -- core-image-minimal"
+      
+      - name: Check build output
+        run: |
+          ls -lh ~/yocto-build/tmp/deploy/images/cm5-mi450-linnie/ || true
+          du -sh ~/yocto-build/tmp/deploy/images/cm5-mi450-linnie/*.wic.bz2 || true
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: core-image-minimal-${{ github.sha }}
+          path: |
+            ~/yocto-build/tmp/deploy/images/cm5-mi450-linnie/*.wic.bz2
+            ~/yocto-build/tmp/deploy/images/cm5-mi450-linnie/*.manifest
+          retention-days: 7
+      
+      - name: Upload build logs on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: build-logs-minimal-${{ github.sha }}
+          path: |
+            ~/yocto-build/tmp/log/
+            ~/yocto-build/tmp/work/*/temp/log.*
+          retention-days: 3
+
+  # Job 2: Build Base Image (standard configuration)
+  build-base:
+    name: Build core-image-base
+    runs-on: ubuntu-22.04
+    needs: build-minimal  # Only run if minimal succeeds
+    timeout-minutes: 150
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo docker image prune --all --force
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+      
+      - name: Build DevContainer image
+        run: |
+          docker build -t linnie-yocto-builder:latest \
+            -f .devcontainer/Dockerfile .
+      
+      - name: Cache Yocto downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/yocto-dl-cache
+          key: yocto-downloads-${{ hashFiles('kas/linnie.yml') }}
+          restore-keys: |
+            yocto-downloads-
+      
+      - name: Cache Yocto sstate
+        uses: actions/cache@v4
+        with:
+          path: ~/yocto-sstate-cache
+          key: yocto-sstate-base-${{ github.sha }}
+          restore-keys: |
+            yocto-sstate-base-
+            yocto-sstate-minimal-
+            yocto-sstate-
+      
+      - name: Prepare build directories
+        run: |
+          mkdir -p ~/yocto-dl-cache
+          mkdir -p ~/yocto-sstate-cache
+          mkdir -p ~/yocto-workspace
+          mkdir -p ~/yocto-build
+      
+      - name: Build core-image-base
+        run: |
+          docker run --rm \
+            -v $(pwd):/workspaces/linnie:ro \
+            -v ~/yocto-dl-cache:/yocto/downloads \
+            -v ~/yocto-sstate-cache:/yocto/sstate-cache \
+            -v ~/yocto-workspace:/yocto/workspace \
+            -v ~/yocto-build:/yocto/build \
+            --dns=8.8.8.8 \
+            --dns=8.8.4.4 \
+            linnie-yocto-builder:latest \
+            bash -c "kas build /workspaces/linnie/kas/linnie.yml -- core-image-base"
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: core-image-base-${{ github.sha }}
+          path: |
+            ~/yocto-build/tmp/deploy/images/cm5-mi450-linnie/*.wic.bz2
+            ~/yocto-build/tmp/deploy/images/cm5-mi450-linnie/*.manifest
+          retention-days: 7
+
+  # Job 3: Build Full Image (with all custom layers)
+  build-full:
+    name: Build with all layers
+    runs-on: ubuntu-22.04
+    needs: build-base  # Only run if base succeeds
+    timeout-minutes: 180
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo docker image prune --all --force
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build DevContainer image
+        run: |
+          docker build -t linnie-yocto-builder:latest \
+            -f .devcontainer/Dockerfile .
+      
+      - name: Cache Yocto downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/yocto-dl-cache
+          key: yocto-downloads-${{ hashFiles('kas/linnie.yml') }}
+          restore-keys: |
+            yocto-downloads-
+      
+      - name: Cache Yocto sstate
+        uses: actions/cache@v4
+        with:
+          path: ~/yocto-sstate-cache
+          key: yocto-sstate-full-${{ github.sha }}
+          restore-keys: |
+            yocto-sstate-full-
+            yocto-sstate-base-
+            yocto-sstate-
+      
+      - name: Prepare build directories
+        run: |
+          mkdir -p ~/yocto-dl-cache
+          mkdir -p ~/yocto-sstate-cache
+          mkdir -p ~/yocto-workspace
+          mkdir -p ~/yocto-build
+      
+      - name: Build full image (uses target in kas/linnie.yml)
+        run: |
+          docker run --rm \
+            -v $(pwd):/workspaces/linnie:ro \
+            -v ~/yocto-dl-cache:/yocto/downloads \
+            -v ~/yocto-sstate-cache:/yocto/sstate-cache \
+            -v ~/yocto-workspace:/yocto/workspace \
+            -v ~/yocto-build:/yocto/build \
+            --dns=8.8.8.8 \
+            --dns=8.8.4.4 \
+            linnie-yocto-builder:latest \
+            bash -c "kas build /workspaces/linnie/kas/linnie.yml"
+      
+      - name: Generate build report
+        run: |
+          echo "## Build Summary" > build-report.md
+          echo "" >> build-report.md
+          echo "**Machine**: cm5-mi450-linnie" >> build-report.md
+          echo "**Commit**: ${{ github.sha }}" >> build-report.md
+          echo "**Branch**: ${{ github.ref_name }}" >> build-report.md
+          echo "" >> build-report.md
+          echo "### Image Size" >> build-report.md
+          ls -lh ~/yocto-build/tmp/deploy/images/cm5-mi450-linnie/*.wic.bz2 | \
+            awk '{print "- **" $9 "**: " $5}' >> build-report.md
+          echo "" >> build-report.md
+          echo "### Installed Packages" >> build-report.md
+          wc -l ~/yocto-build/tmp/deploy/images/cm5-mi450-linnie/*.manifest | \
+            grep -v total | awk '{print "- " $2 ": " $1 " packages"}' >> build-report.md
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: core-image-full-${{ github.sha }}
+          path: |
+            ~/yocto-build/tmp/deploy/images/cm5-mi450-linnie/*.wic.bz2
+            ~/yocto-build/tmp/deploy/images/cm5-mi450-linnie/*.manifest
+            build-report.md
+          retention-days: 30  # Keep full builds longer
+      
+      - name: Comment PR with build report
+        if: github.event_name == 'pull_request' && success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('build-report.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
+
+  # Job 4: Build status summary
+  build-status:
+    name: Build Status Summary
+    runs-on: ubuntu-22.04
+    needs: [build-minimal, build-base, build-full]
+    if: always()
+    
+    steps:
+      - name: Check build results
+        run: |
+          echo "Build Status Summary:"
+          echo "- Minimal: ${{ needs.build-minimal.result }}"
+          echo "- Base: ${{ needs.build-base.result }}"
+          echo "- Full: ${{ needs.build-full.result }}"
+          
+          if [ "${{ needs.build-minimal.result }}" != "success" ] || \
+             [ "${{ needs.build-base.result }}" != "success" ] || \
+             [ "${{ needs.build-full.result }}" != "success" ]; then
+            echo "❌ One or more builds failed"
+            exit 1
+          fi
+          
+          echo "✅ All builds succeeded!"

@@ -1,0 +1,70 @@
+name: PR Build Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  # Quick validation - only build minimal for PRs
+  quick-check:
+    name: Quick PR Validation
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      
+      - name: Check layer syntax
+        run: |
+          # Check for common BitBake syntax errors
+          find sources/meta-linnie* -name "*.bb" -o -name "*.bbappend" | \
+            xargs -I {} bash -c 'echo "Checking {}"; grep -n "```" {} && exit 1 || true'
+      
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo docker image prune --all --force
+      
+      - name: Build Docker image
+        run: |
+          docker build -t linnie-yocto-builder:latest \
+            -f .devcontainer/Dockerfile .
+      
+      - name: Cache Yocto downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/yocto-dl-cache
+          key: yocto-downloads-${{ hashFiles('kas/linnie.yml') }}
+      
+      - name: Prepare directories
+        run: |
+          mkdir -p ~/yocto-dl-cache ~/yocto-sstate-cache
+          mkdir -p ~/yocto-workspace ~/yocto-build
+      
+      - name: Quick build test (minimal only)
+        run: |
+          docker run --rm \
+            -v $(pwd):/workspaces/linnie:ro \
+            -v ~/yocto-dl-cache:/yocto/downloads \
+            -v ~/yocto-sstate-cache:/yocto/sstate-cache \
+            -v ~/yocto-workspace:/yocto/workspace \
+            -v ~/yocto-build:/yocto/build \
+            --dns=8.8.8.8 \
+            linnie-yocto-builder:latest \
+            bash -c "kas build /workspaces/linnie/kas/linnie.yml -- core-image-minimal"
+      
+      - name: Post PR comment
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Quick validation passed! Full builds will run after merge.'
+            });
